@@ -13,11 +13,11 @@
 
 struct player
 {
-    int location;
-    long long money;
-    int order;
-    int aggro;
-    int player;
+    char location; // p[0][7:0]
+    long long money; // p[1][63:0]
+    char order; // p[0][15:8]
+    int aggro; // not implemented
+    char player; // p[0][23:16] 
 };
 
 struct location
@@ -309,6 +309,10 @@ int cont(struct player * players)
 
 int main()
 {
+    long long[2] p1;
+    long long[2] p2;
+    long long[2] p3;
+    long long[2] p4;
     srand(time(NULL));
     struct location board[BSIZE];
     init_board(board);
