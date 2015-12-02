@@ -13,11 +13,12 @@
 
 struct player
 {
-    char location; // p[0][7:0]
-    long long money; // p[1][63:0]
-    char order; // p[0][15:8]
+    char location; // p[0]
+    char order; // p[1]
     int aggro; // not implemented
-    char player; // p[0][23:16] 
+    char player; // p[2] 
+    // properties p[3 - 7]
+    long long money; // p[8-15]
 };
 
 struct location
@@ -71,6 +72,7 @@ void init_board(struct location * board)
                 board[i].owner = -2;
                 break;
             case 9:
+            case 8:
                 board[i].value = 120;
                 board[i].rent = 8;
                 board[i].owner = -2;
@@ -132,6 +134,7 @@ void init_board(struct location * board)
                 board[i].owner = -2;
                 break;
             case 33:
+            case 34:
                 board[i].value = 320;
                 board[i].rent = 28;
                 board[i].owner = -2;
@@ -167,79 +170,252 @@ void init_players(struct player * players)
     }
 }
 
-void property(struct location * board, int l)
-{
-    //board[l].
-}
-
-void utility() {}
-
-void chance() {}
-
-void comm_chest() {}
-
-void tax() {}
-
-void railroad() {}
-
-void go() {}
-
-void jail() {}
-
-void freeparking() {}
-
-void gotojail() {}
-
-void move(struct player * players, struct location * board, int n)
+int chance(struct player * players, int n) 
 {
     struct player * p = &players[n];
-    board[p->location].visited++;
-#ifdef DEBUG
-    printf("Player %d moved from %d\n", n, p->location);
-#endif
-    if (p->money <= 0)
+    int d[4];
+    char max = 0;
+    int ret = 0;
+    int i;
+    // 1 is property
+    // 2 is utility pay 10x
+    // 3 is railroad pay 2x
+    // 4 is handle movement
+    // 5 is railroad pay norm
+    int res = rand() % 16;
+    switch (res)
     {
-        return;
+        case 0:
+            p->location = 0;
+            p->money += 200;
+            break;
+        case 1:
+            p->location = 24;
+            ret = 1;
+            // property
+            break;
+        case 2:
+            p->location = 11;
+            ret = 1;
+            // property
+            break;
+        case 3:
+            if ((p->location - 12) * (p->location - 12) >
+                (p->location - 28) * (p->location - 28))
+            {
+                // farther from electric company
+                p->location = 28;
+            }
+            else
+            {
+                // farther from water works
+                p->location = 12;
+            }
+            // utility pay 10x
+            ret = 2;
+            break;
+        case 4:
+            d[0] = (p->location - 5) * (p->location - 5);
+            d[1] = (p->location - 15) * (p->location - 15);
+            d[2] = (p->location - 25) * (p->location - 25);
+            d[3] = (p->location - 35) * (p->location - 35);
+            for (i = 0; i < 3; i++)
+            {
+                if (d[i] < d[i+1])
+                {
+                    max = i + 1;
+                }
+            }
+            ret = 3;
+            // railroad pay 2x
+            break;
+        case 5:
+            p->money += 50;
+            break;
+        case 6:
+            // get out of jail
+            // do nothing, houserules
+            break;
+        case 7:
+            p->location -= 3;
+            ret = 4;
+            // handle movement
+            break;
+        case 8:
+            p->location = 10;
+            p->money -= 50;
+            break;
+        case 9:
+            // general repairs
+            break;
+        case 10:
+            p->money -= 15;
+            break;
+        case 11:
+            p->location = 5;
+            ret = 5;
+            // railroad
+            break;
+        case 12:
+            p->location = 39;
+            ret = 1;
+            // property
+            break;
+        case 13:
+            p->money -= 200;
+            // pay each player 50
+            for (i == 0; i < 4; i++)
+            {
+                if (i != n)
+                {
+                    players[i].money += 50;
+                }
+            }
+            break;
+        case 14:
+            p->money += 150;
+            break;
+        case 15:
+            p->money += 100;
+            break;
     }
-    if (p->location == 30)
+    return ret;
+}
+
+void comm_chest(struct player * players, int n)
+{
+    struct player * p = &players[n];
+    int i;
+    int res = rand() % 16;
+    switch (res)
     {
-        // go to jail
-        p->location = 10;
-        return;
+        case 1:
+            p->location = 0;
+            p->money += 200;
+            break;
+        case 2:
+            p->money += 200;
+            break;
+        case 3:
+            p->money -= 50;
+            break;
+        case 4:
+            p->money += 50;
+            break;
+        case 5:
+            // get out of jail free
+            // do nothing, houserules
+            break;
+        case 6:
+            p->money += 200;
+            // take money from other players
+            for (i = 0; i < 4; i++)
+            {
+                if (n != i)
+                {
+                    players[i].money -= 50;
+                }
+            }
+            break;
+        case 7:
+            p->money += 100;
+            break;
+        case 8:
+            p->money += 20;
+            break;
+        case 9:
+            p->money += 40;
+            // take money from other players
+            for (i = 0; i < 4; i++)
+            {
+                if (n != i)
+                {
+                    players[i].money -= 10;
+                }
+            }
+            break;
+        case 10:
+            p->money += 100;
+            break;
+        case 11:
+            p->money -= 100;
+            break;
+        case 12:
+            p->money -= 150;
+            break;
+        case 13:
+            p->money += 25;
+            break;
+        case 14:
+            // street repairs, per house and hotel
+            break;
+        case 15:
+            p->money += 100;
+            break;
     }
-    else
-    {
-        p->location += roll() + roll();
-    }
-#ifdef DEBUG
-    printf(" to %d\n", p->location);
-#endif
-    if (p->location > 39)
-    {
-#ifdef DEBUG
-        printf("Player %d passed Go\n", n);
-#endif
-        p->location %= 40;
-        p->money += 200;
-    }
+}
+
+void utility(struct player * players, struct location * board, const int multiplier, int n) 
+{
+    struct player * p = &players[n];
     if (board[p->location].owner > 0)
+    {
+        long long amt;
+        amt = roll() * 4 * multiplier;
+        p->money -= amt;
+        players[board[p->location].owner].money += amt;
+        board[p->location].profits += amt;
+    }
+    else if (board[p->location].owner == -2)
+    {
+        if (p->money > board[p->location].value)
+        {
+#ifdef DEBUG
+        printf("Player %d bought location %d\n", n, p->location);
+#endif
+            board[p->location].owner = p->order;
+            p->money -= board[p->location].value;
+        }
+    }
+
+}
+
+void railroad(struct player * players, struct location * board, 
+              const int multiplier, const int n) 
+{
+    struct player * p = &players[n];
+    if (board[p->location].owner > 0)
+    {
+        long long amt;
+        amt = board[p->location].rent * multiplier;
+        p->money -= amt;
+        players[board[p->location].owner].money += amt;
+        board[p->location].profits += amt;
+    }
+    else if (board[p->location].owner == -2)
+    {
+        if (p->money > board[p->location].value)
+        {
+#ifdef DEBUG
+        printf("Player %d bought location %d\n", n, p->location);
+#endif
+            board[p->location].owner = p->order;
+            p->money -= board[p->location].value;
+        }
+    }
+}
+
+void property(struct player * players, struct location * board, const int n)
+{
+    struct player * p = &players[n];
+    if (board[p->location].owner > -1)
     {
         // pay
         long long amt;
-        if (board[p->location].rent == -1)
-        {
-            amt = 4 * roll();
-            p->money -= 4 * roll();
-            board[p->location].profits += amt;
-            players[board[p->location].owner].money += amt;
-        }
-        else
-        {
-            amt = board[p->location].rent;
-            p->money -= amt;
-            players[board[p->location].owner].money += amt;
-            board[p->location].profits += amt;
-        }
+        amt = board[p->location].rent;
+        p->money -= amt;
+        players[board[p->location].owner].money += amt;
+        board[p->location].profits += amt;
 #ifdef DEBUG
         printf("Player %d payed player %d $%d\n", n, board[p->location].owner, amt);
 #endif
@@ -249,9 +425,9 @@ void move(struct player * players, struct location * board, int n)
         if (p->money > board[p->location].value)
         {
 #ifdef DEBUG
-        printf("Player %d bought location %d\n", n, p->location);
+        printf("Player %d bought location %d\n", p->order, p->location);
 #endif
-            board[p->location].owner = n;
+            board[p->location].owner = p->order;
             p->money -= board[p->location].value;
         }
     }
@@ -261,8 +437,143 @@ void move(struct player * players, struct location * board, int n)
     }
 }
 
+void move(struct player * players, struct location * board, const int n)
+{
+    struct player * p = &players[n];
+    int ret;
+    if (p->money <= 0)
+    {
+        return;
+    }
+    #ifdef DEBUG
+    printf("Player %d moved from %d\n", n, p->location);
+#endif
+    if (p->location == 30)
+    {
+        // go to jail
+        p->location = 10;
+        p->money -= 50;
+        return;
+    }
+    else
+    {
+        p->location += roll() + roll();
+    }
+    if (p->location > 39)
+    {
+#ifdef DEBUG
+        printf("Player %d passed Go\n", n);
+#endif
+        p->location %= 40;
+        p->money += 200;
+    }
+#ifdef DEBUG
+    printf(" to %d\n", p->location);
+#endif
+    board[p->location].visited++;
+    switch (p->location)
+    {
+        case 1:
+        case 3:
+        case 6:
+        case 8:
+        case 9:
+        case 11:
+        case 13:
+        case 14:
+        case 16:
+        case 18:
+        case 19:
+        case 21:
+        case 23:
+        case 24:
+        case 26:
+        case 27:
+        case 29:
+        case 31:
+        case 32:
+        case 34:
+        case 37:
+        case 39:
+            // properties
+            property(players, board, n);
+            break;
+        case 2:
+        case 17:
+        case 33:
+            comm_chest(players, n);
+            break;
+        case 7:
+        case 22:
+        case 36:
+            // 1 is property
+            // 2 is utility pay 10x
+            // 3 is railroad pay 2x
+            // 4 is handle movement
+            // 5 is railroad pay norm
+            // chance
+            ret = chance(players, n);
+            switch (ret)
+            {
+                case 1:
+                    property(players, board, n);
+                    break;
+                case 2:
+                    utility(players, board, 10, n);
+                    break;
+                case 3:
+                    railroad(players, board, 2, n);
+                    break;
+                case 4:
+                    move(players, board, n);
+                    break;
+                case 5:
+                    railroad(players, board, 1, n);
+                    break;
+            }
+            break;
+        case 5:
+        case 15:
+        case 25:
+        case 35:
+            railroad(players, board, 1, n);
+            // railroad
+            break;
+        case 12:
+        case 28:
+            utility(players, board, 1, n);
+            // utility
+            break;
+        case 30:
+            p->location = 10;
+            p->money -= 50;
+            // go to jail
+            break;
+        case 10:
+            // jail
+            break;
+        case 4:
+            p->money -= 200;
+            // income tax
+            break;
+        case 38:
+            p->money -= 75;
+            // luxury tax
+            break;
+        case 0:
+        case 20:
+            // go and free parking, do nothing
+            return;
+        default:
+            printf("ERROR: where are you??? player %d at %d\n", p->order, p->location);
+            break;
+    }
+
+}
+
 void results(struct player * p, struct location * b)
 {
+    long long totalvisits = 0;
     printf("====================\n");
     int i;
     for (i = 0; i < NUMPLAYERS; i++)
@@ -274,8 +585,14 @@ void results(struct player * p, struct location * b)
     for (i = 0; i < BSIZE; i++)
     {
         printf("%d: Profits %ld Owner %d Visited: %ld\n", i, b[i].profits, b[i].owner, b[i].visited);
+        totalvisits += b[i].visited;
     }
     printf("====================\n\n\n");
+    for (i = 0; i < BSIZE; i++)
+    {
+        printf("%d: %lf\n", i, (double) b[i].visited / totalvisits);
+    }
+    printf("====================\n");
 }
 
 void print_board_info(struct location * b)
@@ -309,10 +626,6 @@ int cont(struct player * players)
 
 int main()
 {
-    long long[2] p1;
-    long long[2] p2;
-    long long[2] p3;
-    long long[2] p4;
     srand(time(NULL));
     struct location board[BSIZE];
     init_board(board);
@@ -320,8 +633,8 @@ int main()
     struct player players[NUMPLAYERS];
     init_players(players);
 
-    results(players, board);
-    int itr = 10000;
+//    results(players, board);
+    int itr = 100000;
     int i;
     //while (cont(players))
     while (itr)
