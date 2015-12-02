@@ -5,11 +5,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdint.h>
 
 #define BSIZE 40
 #define NUMPLAYERS 4
 
 //#define DEBUG
+
+#define BROWNG  0xAL
+#define LBLUEG  0x340L
+#define VIOLETG 0x6800L
+#define ORANGEG 0xD0000L
+#define REDG    0x1A00000L
+#define YELLOWG 0x2C000000L
+#define GREENG  0x580000000L
+#define BLUEG   0xA000000000L
 
 struct player
 {
@@ -358,7 +368,7 @@ void comm_chest(struct player * players, int n)
 void utility(struct player * players, struct location * board, const int multiplier, int n) 
 {
     struct player * p = &players[n];
-    if (board[p->location].owner > 0)
+    if (board[p->location].owner > -1)
     {
         long long amt;
         amt = roll() * 4 * multiplier;
@@ -384,7 +394,7 @@ void railroad(struct player * players, struct location * board,
               const int multiplier, const int n) 
 {
     struct player * p = &players[n];
-    if (board[p->location].owner > 0)
+    if (board[p->location].owner > -1)
     {
         long long amt;
         amt = board[p->location].rent * multiplier;
@@ -568,7 +578,177 @@ void move(struct player * players, struct location * board, const int n)
             printf("ERROR: where are you??? player %d at %d\n", p->order, p->location);
             break;
     }
+}
 
+int count_group(const uint64_t prop, const uint64_t g)
+{
+    uint64_t temp = 0;
+    int count;
+    temp = prop & g;
+    while (temp)
+    {
+        if (temp % 2)
+        {
+            count++;
+        }
+        temp >>= 1;
+    }
+    return count;
+
+}
+
+int count_owned(struct location * b, const int n)
+{
+    int i;
+    int res = 0;
+    for (i = 0; i < BSIZE; i++)
+    {
+        if (b[i].owner == n)
+        {
+            res++;
+        }
+    }
+    return res;
+}
+
+void trade(struct player * players, struct location * b, const int n)
+{
+    uint64_t prop[4] = {0L, 0L, 0L, 0L};
+    int i, j;
+    long long sellbid, sellbid;
+    int owned[4];
+    printf("for %d\n", n);
+    for (j = 0; j < 4; j++)
+    {
+        for (i = 0; i < BSIZE; i++)
+        {
+            if (b[i].owner == j)
+            {
+                prop[j] |= 0x0L | (0x1L << i);
+            }
+        }
+    }
+    owned[0] = count_owned(b, 0);
+    owned[1] = count_owned(b, 1);
+    owned[2] = count_owned(b, 2);
+    owned[3] = count_owned(b, 3);
+    int count[4];
+    count[0] = count_group(prop[0], LBLUEG);
+    count[1] = count_group(prop[1], LBLUEG);
+    count[2] = count_group(prop[2], LBLUEG);
+    count[3] = count_group(prop[3], LBLUEG);
+    // want to trade?
+    if (count[n] == 2)
+    {
+        for (i = 0; i < 4 && !(count[i]i && i != n); i++);
+        if (owned[i] > 1)
+        {
+            sellbid = rand % players[n].money;
+            buybid = rand % players[n].money;
+            if (sellbid <= buybid)
+            {
+                players[n].money -= sellbid;
+                // now set ownership
+            }
+        }
+    }
+    count[0] = count_group(prop[0], VIOLETG);
+    count[1] = count_group(prop[1], VIOLETG);
+    count[2] = count_group(prop[2], VIOLETG);
+    count[3] = count_group(prop[3], VIOLETG);
+    // want to trade?
+    if (count[n] == 2)
+    {
+        for (i = 0; i < 4 && !(count[i]i && i != n); i++);
+        if (owned[i] > 1)
+        {
+            sellbid = rand % players[n].money;
+            buybid = rand % players[n].money;
+            if (sellbid <= buybid)
+            {
+                players[n].money -= sellbid;
+                // now set ownership
+            }
+        }
+    }
+    count[0] = count_group(prop[0], ORANGEG);
+    count[1] = count_group(prop[1], ORANGEG);
+    count[2] = count_group(prop[2], ORANGEG);
+    count[3] = count_group(prop[3], ORANGEG);
+    // want to trade?
+    if (count[n] == 2)
+    {
+        for (i = 0; i < 4 && !(count[i]i && i != n); i++);
+        if (owned[i] > 1)
+        {
+            sellbid = rand % players[n].money;
+            buybid = rand % players[n].money;
+            if (sellbid <= buybid)
+            {
+                players[n].money -= sellbid;
+                // now set ownership
+            }
+        }
+    }
+    count[0] = count_group(prop[0], REDG);
+    count[1] = count_group(prop[1], REDG);
+    count[2] = count_group(prop[2], REDG);
+    count[3] = count_group(prop[3], REDG);
+    // want to trade?
+    if (count[n] == 2)
+    {
+        for (i = 0; i < 4 && !(count[i]i && i != n); i++);
+        if (owned[i] > 1)
+        {
+            sellbid = rand % players[n].money;
+            buybid = rand % players[n].money;
+            if (sellbid <= buybid)
+            {
+                players[n].money -= sellbid;
+                // now set ownership
+            }
+        }
+    }
+
+    count[0] = count_group(prop[0], YELLOWG);
+    count[1] = count_group(prop[1], YELLOWG);
+    count[2] = count_group(prop[2], YELLOWG);
+    count[3] = count_group(prop[3], YELLOWG);
+    // want to trade?
+    if (count[n] == 2)
+    {
+        for (i = 0; i < 4 && !(count[i]i && i != n); i++);
+        if (owned[i] > 1)
+        {
+            sellbid = rand % players[n].money;
+            buybid = rand % players[n].money;
+            if (sellbid <= buybid)
+            {
+                players[n].money -= sellbid;
+                // now set ownership
+            }
+        }
+    }
+    count[0] = count_group(prop[0], GREENG);
+    count[1] = count_group(prop[1], GREENG);
+    count[2] = count_group(prop[2], GREENG);
+    count[3] = count_group(prop[3], GREENG);
+    // want to trade?
+    if (count[n] == 2)
+    {
+        for (i = 0; i < 4 && !(count[i]i && i != n); i++);
+        if (owned[i] > 1)
+        {
+            sellbid = rand % players[n].money;
+            buybid = rand % players[n].money;
+            if (sellbid <= buybid)
+            {
+                players[n].money -= sellbid;
+                // now set ownership
+            }
+        }
+    }
+    printf("prop %lx\n", prop);
 }
 
 void results(struct player * p, struct location * b)
@@ -654,6 +834,10 @@ int main()
 
     }
 
+    trade(players, board, 0);
+    trade(players, board, 1);
+    trade(players, board, 2);
+    trade(players, board, 3);
     results(players, board);
 
     return 0;
