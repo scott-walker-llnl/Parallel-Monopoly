@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <mpi.h>
 #include <stdint.h>
 
 #define BSIZE 40
@@ -31,12 +32,19 @@ static const int TRAINS[4] = {5, 15, 25, 35};
 
 static const int UTILITIES[2] = {12, 28};
 
+struct senddata
+{
+    long long money[4];
+    char purchase;
+    char plocation;
+    char order;
+};
+
 struct player
 {
     char location; // p[0]
     char order; // p[1]
-    int aggro; // not implemented
-    char player; // p[2] 
+    char properties[5];
     // properties p[3 - 7]
     long long money; // p[8-15]
 };
@@ -51,6 +59,24 @@ struct location
     long long visited;
     char group;
 };
+
+int roll();
+void init_board(struct location * board);
+void init_players(struct player * players);
+int chance(struct player * players, int n);
+void comm_chest(struct player * players, int n);
+void utility(struct player * players, struct location * board, const int multiplier, const int n, int * purchasevalue, char * plocation);
+void railroad(struct player * players, struct location * board, const int multiplier, const int n, int * purchasevalue, char * plocation);
+void property(struct player * players, struct location * board, const int n, int * purchasevalue, char * plocation);
+void move(struct player * players, struct location * board, const int n, int * purchasevalue, char * plocation);
+int count_group(struct location * b, const int group, const int n);
+int count_owned(struct location * b, const int n);
+void trade(struct player * players, struct location * b, const int n);
+void results(struct player * p, struct location * b);
+void remove_properties(struct location * b, const int n);
+void print_board_info(struct location * b);
+int cont(struct player * players);
+void send_info(struct purchase * send, const int rank, MPI_Comm game);
 
 int roll()
 {
@@ -393,7 +419,7 @@ void comm_chest(struct player * players, int n)
     }
 }
 
-void utility(struct player * players, struct location * board, const int multiplier, int n) 
+void utility(struct player * players, struct location * board, const int multiplier, int n, int purchasevalue, char plocation) 
 {
     struct player * p = &players[n];
     if (board[p->location].owner > -1)
@@ -412,14 +438,15 @@ void utility(struct player * players, struct location * board, const int multipl
         printf("Player %d bought location %d\n", n, p->location);
 #endif
             board[p->location].owner = p->order;
-            p->money -= board[p->location].value;
+            //p->money -= board[p->location].value;
+            purchasevalue = board[p->location].value;
+            purchase = p->location;
         }
     }
 
 }
 
-void railroad(struct player * players, struct location * board, 
-              const int multiplier, const int n) 
+void railroad(struct player * players, struct location * board, const int multiplier, const int n, int purchasevalue, char plocation);
 {
     struct player * p = &players[n];
     if (board[p->location].owner > -1)
@@ -443,7 +470,7 @@ void railroad(struct player * players, struct location * board,
     }
 }
 
-void property(struct player * players, struct location * board, const int n)
+void property(struct player * players, struct location * board, const int n, int purchasevalue, char plocation);
 {
     struct player * p = &players[n];
     if (board[p->location].owner > -1)
@@ -475,7 +502,7 @@ void property(struct player * players, struct location * board, const int n)
     }
 }
 
-void move(struct player * players, struct location * board, const int n)
+void move(struct player * players, struct location * board, const int n, int purchasevalue, char plocation);
 {
     struct player * p = &players[n];
     int ret;
@@ -680,10 +707,10 @@ void trade(struct player * players, struct location * b, const int n)
             buybid = rand() % (players[n].money / 100 + 1) * b[players[n].location].value;
             if (sellbid <= buybid)
             {
-                //printf("buyer %d already has %d\n", n, count[n]);
+                printf("buyer %d already has %d\n", n, count[n]);
                 for (j = 0; j < 3; j++)
                 {
-                    //printf("trading group. %d onwer is %d\n", GROUPS[g][j], b[GROUPS[g][j]].owner);
+                    printf("trading group. %d onwer is %d\n", GROUPS[g][j], b[GROUPS[g][j]].owner);
                     if (b[GROUPS[g][j]].owner != n && b[GROUPS[g][j]].owner > -1)
                     {
                         seller = b[GROUPS[g][j]].owner;
@@ -719,7 +746,7 @@ void results(struct player * p, struct location * b)
         totalvisits += b[i].visited;
     }
     printf("====================\n\n\n");
-    printf("Proportion of time spent in cells\n");
+    printf("Proportion of time spent in cell\n");
     for (i = 0; i < BSIZE; i++)
     {
         printf("%d: %lf\n", i, (double) b[i].visited / totalvisits);
@@ -768,44 +795,93 @@ int cont(struct player * players)
     return 0;
 }
 
+void send_info(struct senddata * send, const int rank, MPI_Comm game)
+{
+    struct senddata r1, r2, r3;
+    //MPI_Bcast(send, 1, MPI_MONO_DATA, rank, game);
+    MPI_Send(
+    if (rank != 0) MPI_Recv(&r1, 1, MPI_MONO_DATA, source, 0, game, MPI_STATUS_IGNORE);
+    if (rank != 1) MPI_Recv(&r2, 1, MPI_MONO_DATA, source, 1, game, MPI_STATUS_IGNORE);
+    if (rank != 2) MPI_Recv(&r3, 1, MPI_MONO_DATA, source, 2, game, MPI_STATUS_IGNORE);
+    if (rank != 3) MPI_Recv(&r3, 1, MPI_MONO_DATA, source, 3, game, MPI_STATUS_IGNORE);
+}
+
 int main()
 {
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
     srand(time(NULL));
     struct location board[BSIZE];
-    init_board(board);
-    print_board_info(board);
     struct player players[NUMPLAYERS];
+    int itr = 10000;
+    long long bills[4]; // how much you owe each player at end of round
     init_players(players);
+    init_board(board);
+    char plocation;
+    int pvalue;
+    struct senddata;
+    int numcomms = 1;
+    MPI_Group world_group;
+    MPI_Comm_group(MPI_COMM_WORLD, &world_group);
 
-//    results(players, board);
-    int itr = 100000;
-    int done[4] = {1, 1, 1, 1};
-    int i;
-    //while (cont(players))
-    while (itr)
+    MPI_Group * gamesel;
+    MPI_Comm * games;
+    int ranksel[4];
+    if (size > 4)
     {
-        itr--;
-        for (i = 0; i < NUMPLAYERS; i++)
+        numcomms = size / 4;
+        games = (MPI_Comm *) malloc(numcomms * sizeof(MPI_Comm));
+        gamesel = (MPI_Group *) malloc(numgames * sizeof(MPI_Group));
+        int i;
+        for (i = 0; i < numcomms; i++)
         {
-            if (players[i].money >= 0)
-            {
-                move(players, board, i);
-                trade(players, board, i);
-            }
-            else
-            {
-                players[i].order = -1;
-                if (done[i])
-                {
-                    remove_properties(board, i);
-                    done[i] == 0;
-                }
-            }
+            ranksel[0] = 4 * i;
+            ranksel[1] = 4 * i + 1;
+            ranksel[2] = 4 * i + 2;
+            ranksel[3] = 4 * i + 3;
+            MPI_Group_incl(world_group, 4, ranksel, &gamesel[i]);
+            MPI_Comm_create(MPI_COMM_WORLD, gamesel[i], &games[i]);
         }
-
     }
 
-    results(players, board);
+    // create our senddata MPI type
+    const int nitems = 4;
+    int blocklengths[4] = {1, 1, 1, 1};
+    MPI_Datatype types[4] = {MPI_LONG_LONG, MPI_CHAR, MPI_CHAR, MPI_CHAR};
+    MPI_Datatype MPI_MONO_DATA;
+    MPI_Aint offsets[4];
+
+    offsets[0] = offsetof(player, location);
+    offsets[1] = offsetof(player, order);
+    offsets[2] = offsetof(player, money);
+    offsets[3] = offsetof(player, properties);
+
+    MPI_Type_create_struct(nitems, blocklengths, offsets, types, &MPI_MONO_DATA);
+    MPI_Type_commit(&MPI_MONO_DATA);
+
+    if (rank == 0)
+    {
+        print_board_info(board);
+    }
+
+    while (players[rank].money > 0)
+    {
+        // this player is still in the game
+        move(players, board, rank, &plocation, &pvalue);
+        trade(players, board, rank, &plocation, &pvalue);
+        senddata.pvalue = pvalue;
+        senddata.plocation = plocation;
+        send_info(senddata, rank, game);
+        // make sure you can actually buy that property and subtract money owed
+    }
+    // player is out of money
+    // remove all properties owned
+    
+    if (rank == 0)
+    {
+        results(players, board);
+    }
 
     return 0;
 }
