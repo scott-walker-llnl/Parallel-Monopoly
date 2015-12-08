@@ -857,21 +857,40 @@ void send_info(struct senddata * send, struct player * players, struct location 
     if (game != MPI_COMM_WORLD) fprintf(output[globalrank], "COMM ERROR\n");
     MPI_Barrier(game);
     MPI_Allgather(send, 1, MPI_MONO_DATA, p, 1, MPI_MONO_DATA, game);
+    p[rank] = *send;
     
     fprintf(output[globalrank], "tag 2 from rank %d\n", rank);
-    int i, conflict = 0, buyer = rank;
+    int i, j;
+    int buyer[4] = {0, 0, 0, 0};
+    int escrow[4];
     for (i = 0; i < 4; i++)
     {
-        players[i].money = p[i].money[rank];
-        if (p[i].plocation == send->plocation)
+        if (p[i].plocation < 39)
         {
-            conflict = 1;
-            if (buyer > p[i].order)
+            escrow[i] = p[i].plocation;
+        }
+        else
+        {
+            fprintf(output[globalrank], "invalid purchase location %d for player %d\n", p[i].plocation, i);
+        }
+    }
+    for (i = 0; i < 4; i++)
+    {
+        buyer[i] = p[i].order;
+        for (j = 0; j < 4; j++)
+        {
+            players[i].money += p[j].money[i];
+            if (p[i].plocation == escrow[j] && i != j)
             {
-                fprintf(output[globalrank], "purchase conflict for player %d\n", p[i].order);
-                buyer = i;
+                if (p[j].order < buyer[i])
+                {
+                    buyer[i] = p[j].order;
+                }
             }
         }
+        fprintf(output[globalrank], "player %d bought %d\n", rank, send->plocation); 
+        players[buyer[i]].money -= p[buyer[i]].pvalue;
+        board[p[i].plocation].owner = p[buyer[i]].order;
         //if (p[i].trade)
         //{
         //    players[p[i].order].money += send->pvalue;
@@ -879,21 +898,6 @@ void send_info(struct senddata * send, struct player * players, struct location 
         //}
     }
     fprintf(output[globalrank], "tag 3 from rank %d\n", rank);
-    if (conflict)
-    {
-        // others want to buy so find buyer with lowest rank
-        fprintf(output[globalrank], "(conflict) player %d bought %d\n", buyer, p[i].plocation); 
-        players[i].money -= send->pvalue;
-        board[p[i].plocation].owner = rank;
-    }
-    else
-    {
-        // nobody else trying to buy so set owner and take money
-        fprintf(output[globalrank], "player %d bought %d\n", rank, send->plocation); 
-        players[rank].money -= send->pvalue;
-        board[send->plocation].owner = rank;
-    }
-    fprintf(output[globalrank], "tag 4 from rank %d\n", rank);
 }
 
 // TODO: add player payments for chance/chest
@@ -969,7 +973,7 @@ int main(int argc, char ** argv)
     output[globalrank] = fopen(fname, "w");
     fprintf(output[globalrank], "MAIN begin loop\n");
     print_board_info(board);
-    while (players[rank].money > 0 && itr > 0)
+    while (itr > 0)
     {
         itr--;
         pvalue = 0;
