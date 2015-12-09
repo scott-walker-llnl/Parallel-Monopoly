@@ -798,7 +798,7 @@ int main()
                 if (done[i])
                 {
                     remove_properties(board, i);
-                    done[i] == 0;
+                    done[i] = 0;
                 }
             }
         }

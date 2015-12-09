@@ -18,6 +18,7 @@
 
 FILE ** output;
 int globalrank;
+int globalsize;
 
 enum
 {
@@ -495,7 +496,7 @@ void move(struct player * players, struct location * board, const int n, int * p
     {
         return;
     }
-    #ifdef DEBUG
+#ifdef DEBUG
     fprintf(output[globalrank], "Player %d moved from %d\n", n, p->location);
 #endif
     if (p->location == 30)
@@ -616,7 +617,7 @@ void move(struct player * players, struct location * board, const int n, int * p
             // go and free parking, do nothing
             return;
         default:
-            fprintf(output[globalrank], "ERROR: where are you??? player %d at %d\n", p->order, p->location);
+            fprintf(stderr, "ERROR: where are you??? player %d at %d\n", p->order, p->location);
             break;
     }
 }
@@ -692,16 +693,22 @@ void trade(struct player * players, struct location * b, const int n, int * pval
             buybid = rand() % (players[n].money / 100 + 1) * b[players[n].location].value;
             if (sellbid <= buybid)
             {
+#ifdef DEBUG
                 fprintf(output[globalrank], "buyer %d already has %d\n", n, count[n]);
+#endif
                 for (j = 0; j < 3; j++)
                 {
+#ifdef DEBUG
                     fprintf(output[globalrank], "trading group. %d onwer is %d\n", GROUPS[g][j], b[GROUPS[g][j]].owner);
+#endif
                     if (b[GROUPS[g][j]].owner != n && b[GROUPS[g][j]].owner > -1)
                     {
                         seller = b[GROUPS[g][j]].owner;
                         if (owned[seller] > 2 && players[n].money > 0 && players[seller].money > 0)
                         {
+#ifdef DEBUG
                             fprintf(output[globalrank], "player %d sold %d to player %d\n", seller, GROUPS[g][j], n);
+#endif
                             players[seller].money += sellbid;
                             b[GROUPS[g][j]].owner = n;
                             *plocation = GROUPS[g][j];
@@ -787,46 +794,22 @@ int cont(struct player * players)
 void gather_results(struct player * players, struct location * board, MPI_Comm * games, 
                     const int numcomms, const int rank)
 {
-/*
- *  struct location
-{
-    int location;
-    int value;
-    int rent;
-    int owner;
-    long long profits;
-    long long visited;
-};
-
-    const int nitems = 6;
-    int blocklengths[6] = {1, 1, 1, 1, 1, 1};
-    MPI_Datatype types[6] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_LONG_LONG, MPI_LONG_LONG};
-    MPI_Datatype MPI_MONO_DATA;
-    MPI_Aint offsets[6];
-    offsets[0] = offsetof(boardcell, location);
-    offsets[1] = offsetof(boardcell, [1]);
-    offsets[2] = offsetof(boardcell, money[2]);
-    offsets[3] = offsetof(boardcell, money[3]);
-    offsets[4] = offsetof(boardcell, pvalue);
-    offsets[5] = offsetof(boardcell, plocation);
-    MPI_Type_create_struct(nitems, blocklengths, offsets, types, &MPI_MONO_DATA);
-    MPI_Type_commit(&MPI_MONO_DATA);
-
-*/
-
     int i;
     long long visits[40];
     long long profits[40];
     long long * allvisits = (long long *) malloc(40 * 4 * numcomms * sizeof(long long));
     long long * allprofits = (long long *) malloc(40 * 4 * numcomms * sizeof(long long));
+#ifdef DEBUG
     fprintf(output[globalrank], "tag 5 from rank %d\n", rank);
+#endif
     for (i = 0; i < 40; i++)
     {
         visits[i] = board[i].visited;    
         profits[i] = board[i].profits;
     }
-
+#ifdef DEBUG
     fprintf(output[globalrank], "tag 6 from rank (barrier 2)%d\n", rank);
+#endif
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Gather(visits, 40, MPI_LONG_LONG, allvisits, 40, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     MPI_Gather(profits, 40, MPI_LONG_LONG, allprofits, 40, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
@@ -835,7 +818,9 @@ void gather_results(struct player * players, struct location * board, MPI_Comm *
     //    MPI_Send(visits, 40, MPI_LONG_LONG, 0, 10, MPI_COMM_WORLD);
     //    MPI_Send(profits, 40, MPI_LONG_LONG, 0, 10, MPI_COMM_WORLD);
     //}
+#ifdef DEBUG
     fprintf(output[globalrank], "tag 7 from rank %d\n", rank);
+#endif
     if (globalrank == 0)
     {
         for (i = 0; i < 40 * numcomms; i++)
@@ -844,7 +829,9 @@ void gather_results(struct player * players, struct location * board, MPI_Comm *
             board[i % 40].profits += allprofits[i];
         }
     }
+#ifdef DEBUG
     fprintf(output[globalrank], "tag 8 from rank %d\n", rank);
+#endif
 }
 
 void send_info(struct senddata * send, struct player * players, struct location * board, 
@@ -852,32 +839,45 @@ void send_info(struct senddata * send, struct player * players, struct location 
 {
     struct senddata p[4];
     if (rank > 3) fprintf(stderr, "INVALID RANK\n");
+#ifdef DEBUG
     fprintf(output[globalrank], "tag 1 from rank %d (barrier 1)\n", rank);
-    fprintf(output[globalrank], "send data ptr is %p\n", send);
-    if (game != MPI_COMM_WORLD) fprintf(output[globalrank], "COMM ERROR\n");
+    fprintf(output[globalrank], "d: send data for player %d, plocation %d, pvalue %d\n", 
+            send->order, send->plocation, send->pvalue);
+#endif
+    //if (game != MPI_COMM_WORLD) fprintf(output[globalrank], "COMM ERROR\n");
     MPI_Barrier(game);
     MPI_Allgather(send, 1, MPI_MONO_DATA, p, 1, MPI_MONO_DATA, game);
-    p[rank] = *send;
-    
+#ifdef DEBUG
     fprintf(output[globalrank], "tag 2 from rank %d\n", rank);
+#endif
     int i, j;
     int buyer[4] = {0, 0, 0, 0};
     int escrow[4];
-    for (i = 0; i < 4; i++)
+    int numplayers = (globalsize > 3 ? 4 : 2);
+    for (i = 0; i < numplayers; i++)
     {
-        if (p[i].plocation < 39)
+#ifdef DEBUG
+        fprintf(output[globalrank], "gathered for player %d, plocation %d, pvalue %d\n", 
+                p[i].order, p[i].plocation, p[i].pvalue);
+#endif
+        if (p[i].plocation < 40)
         {
             escrow[i] = p[i].plocation;
         }
         else
         {
-            fprintf(output[globalrank], "invalid purchase location %d for player %d\n", p[i].plocation, i);
+            fprintf(stderr, "invalid purchase location %d for player %d\n", p[i].plocation, i);
         }
+        //if (p[i].trade)
+        //{
+        //    players[p[i].trade].money += p[i].pvalue;
+            //players[p[i].
+        //}
     }
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < numplayers; i++)
     {
         buyer[i] = p[i].order;
-        for (j = 0; j < 4; j++)
+        for (j = 0; j < numplayers; j++)
         {
             players[i].money += p[j].money[i];
             if (p[i].plocation == escrow[j] && i != j)
@@ -888,7 +888,9 @@ void send_info(struct senddata * send, struct player * players, struct location 
                 }
             }
         }
+#ifdef DEBUG
         fprintf(output[globalrank], "player %d bought %d\n", rank, send->plocation); 
+#endif
         players[buyer[i]].money -= p[buyer[i]].pvalue;
         board[p[i].plocation].owner = p[buyer[i]].order;
         //if (p[i].trade)
@@ -897,7 +899,9 @@ void send_info(struct senddata * send, struct player * players, struct location 
         //    board[p[i].order].owner = p[i].order;
         //}
     }
+#ifdef DEBUG
     fprintf(output[globalrank], "tag 3 from rank %d\n", rank);
+#endif
 }
 
 // TODO: add player payments for chance/chest
@@ -907,6 +911,7 @@ int main(int argc, char ** argv)
     int rank, size;// globalrank;
     MPI_Comm_rank(MPI_COMM_WORLD, &globalrank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+    globalsize = size;
     srand(time(NULL) + globalrank);
     struct location board[BSIZE];
     struct player players[NUMPLAYERS];
@@ -923,6 +928,41 @@ int main(int argc, char ** argv)
     //struct senddata d;
     playerdata d;
     output = (FILE **) malloc(size * sizeof(FILE *));
+
+    if (size == 1)
+    {
+        int done[4] = {1, 1, 1, 1};
+        while (itr)
+        {
+            itr--;
+            int i;
+            for (i = 0; i < NUMPLAYERS; i++)
+            {
+                plocation = 0;
+                pvalue = 0;
+                if (players[i].money > 0)
+                {
+                    move(players, board, i, &pvalue, &plocation);
+                    if (plocation)
+                    {
+                        board[plocation].owner = i;
+                        players[i].money -= pvalue;
+                    }
+                }
+                else
+                {
+                    players[i].order = -1;
+                    if (done[i])
+                    {
+                        remove_properties(board, i);
+                        done[i] = 0;
+                    }
+                }
+            }
+        }
+        results(players, board);
+        return 0;
+    }
 
     MPI_Group * gamesel;
     MPI_Comm * games;
@@ -949,20 +989,16 @@ int main(int argc, char ** argv)
         games[0] = MPI_COMM_WORLD;
     }
 
-    // create our senddata MPI type
     const int nitems = 5;
     int blocklengths[5] = {4, 1, 1, 1, 1};
     MPI_Datatype types[5] = {MPI_LONG_LONG, MPI_INT, MPI_CHAR, MPI_CHAR, MPI_CHAR};
     MPI_Datatype MPI_MONO_DATA;
-    MPI_Aint offsets[8];
-    offsets[0] = offsetof(playerdata, money[0]);
-    offsets[1] = offsetof(playerdata, money[1]);
-    offsets[2] = offsetof(playerdata, money[2]);
-    offsets[3] = offsetof(playerdata, money[3]);
-    offsets[4] = offsetof(playerdata, pvalue);
-    offsets[5] = offsetof(playerdata, plocation);
-    offsets[6] = offsetof(playerdata, order);
-    offsets[7] = offsetof(playerdata, trade);
+    MPI_Aint offsets[5];
+    offsets[0] = offsetof(playerdata, money);
+    offsets[1] = offsetof(playerdata, pvalue);
+    offsets[2] = offsetof(playerdata, plocation);
+    offsets[3] = offsetof(playerdata, order);
+    offsets[4] = offsetof(playerdata, trade);
     MPI_Type_create_struct(nitems, blocklengths, offsets, types, &MPI_MONO_DATA);
     MPI_Type_commit(&MPI_MONO_DATA);
 
@@ -971,19 +1007,27 @@ int main(int argc, char ** argv)
     char fname[10];
     snprintf(fname, 10, "mon%d", globalrank);
     output[globalrank] = fopen(fname, "w");
+#ifdef DEBUG
     fprintf(output[globalrank], "MAIN begin loop\n");
+#endif
     print_board_info(board);
     while (itr > 0)
     {
         itr--;
         pvalue = 0;
         plocation = 0;
+        d.trade = 0;
         d.order = rank;
 //        sleep(rank);
+#ifdef DEBUG
         fprintf(output[globalrank], "MAIN tag 1 rank %d\n", rank);
+#endif
         // this player is still in the game
         move(players, board, rank, &pvalue, &plocation);
-//        trade(players, board, rank, &pvalue, &plocation, &d);
+//        if (!plocation)
+//        {
+//            trade(players, board, rank, &pvalue, &plocation, &d);
+//        }
         //printf("MAIN tag 2 rank %d\n", rank);
         d.pvalue = pvalue;
         d.plocation = plocation;
@@ -995,19 +1039,24 @@ int main(int argc, char ** argv)
         }
 #endif
         send_info(&d, players, board, rank, games[globalrank / 4], MPI_MONO_DATA);
+#ifdef DEBUG
         fprintf(output[globalrank], "MAIN tag 3 rank %d\n", rank);
+#endif
         // make sure you can actually buy that property and subtract money owed
         print_board_info(board);
     }
     // player is out of money
     // remove all properties owned
     
+#ifdef DEBUG
     fprintf(output[globalrank], "MAIN last tag rank %d\n", rank);
+#endif
     gather_results(players, board, games, numcomms, globalrank);
-    if (rank == 0)
+    if (globalrank == 0)
     {
         results(players, board);
     }
+    MPI_Barrier(MPI_COMM_WORLD);
 
     fclose(output[globalrank]);
 
