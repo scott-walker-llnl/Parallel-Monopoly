@@ -483,11 +483,7 @@ void move(struct player * players, struct location * board, const int n)
 {
     struct player * p = &players[n];
     int ret;
-    if (p->money <= 0)
-    {
-        return;
-    }
-    #ifdef DEBUG
+#ifdef DEBUG
     printf("Player %d moved from %d\n", n, p->location);
 #endif
     if (p->location == 30)
@@ -793,20 +789,8 @@ int main()
         itr--;
         for (i = 0; i < NUMPLAYERS; i++)
         {
-            if (players[i].money >= 0)
-            {
-                move(players, board, i);
-                trade(players, board, i);
-            }
-            else
-            {
-                players[i].order = -1;
-                if (done[i])
-                {
-                    remove_properties(board, i);
-                    done[i] = 0;
-                }
-            }
+            move(players, board, i);
+            trade(players, board, i);
         }
 
     }

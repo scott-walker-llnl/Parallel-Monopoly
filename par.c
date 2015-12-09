@@ -797,11 +797,12 @@ void gather_results(struct player * players, struct location * board, MPI_Comm *
                     const int numcomms, const int rank)
 {
     int i;
+    int playnum = (globalsize == 2 ? 2 : 4);
     long long visits[40];
     long long profits[40];
-    long long * allvisits = (long long *) malloc(40 * 4 * numcomms * sizeof(long long));
-    long long * allprofits = (long long *) malloc(40 * 4 * numcomms * sizeof(long long));
-#ifdef DEBUG
+    long long * allvisits = (long long *) malloc(40 * playnum * numcomms * sizeof(long long));
+    long long * allprofits = (long long *) malloc(40 * playnum * numcomms * sizeof(long long));
+    #ifdef DEBUG
     fprintf(output[globalrank], "tag 5 from rank %d\n", rank);
 #endif
     // send only the data needed
@@ -821,7 +822,7 @@ void gather_results(struct player * players, struct location * board, MPI_Comm *
 #endif
     if (globalrank == 0)
     {
-        for (i = 0; i < 40 * globalsize * numcomms; i++)
+        for (i = 0; i < 40 * playnum * numcomms; i++)
         {
 #ifdef DEBUG
             fprintf(output[globalrank], "GATHER allvisits[i] is %ld\n", allvisits[i]);
