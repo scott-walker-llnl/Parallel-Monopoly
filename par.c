@@ -37,11 +37,13 @@ enum
     BLUEG
 };
 
+// These list combinations of properties that allow one to increase rent or develop
 static const int GROUPS[8][3] = {{1, 3, 0}, {6, 8, 9}, {11, 13, 14}, {16, 18, 19}, 
                                  {21, 23, 24}, {26, 27, 29}, {31, 32, 34}, {37, 39, 0}};
 static const int TRAINS[4] = {5, 15, 25, 35};
 static const int UTILITIES[2] = {12, 28};
 
+// this struct is used so players only need to send necessary data
 typedef struct senddata
 {
     long long money[4];
@@ -51,6 +53,7 @@ typedef struct senddata
     char trade;
 } playerdata;
 
+// each player's local data
 struct player
 {
     char location; // p[0]
@@ -60,6 +63,7 @@ struct player
     long long money; // p[8-15]
 };
 
+// information for each square
 typedef struct location
 {
     int location;
@@ -91,11 +95,15 @@ void send_info(struct senddata * send, struct player * players, struct location 
 void gather_results(struct player * players, struct location * board, MPI_Comm * games, 
                     const int numcomms, const int rank);
 
+// simulates a dice roll
 int roll()
 {
     return (rand() % 6) + 1;
 }
 
+// this initialises the monopoly board with property values and sets other data to zero
+// -1 indicates a property cant be bought
+// -2 indicates a property can be bought
 void init_board(struct location * board)
 {
     int i;
@@ -218,6 +226,7 @@ void init_board(struct location * board)
     }
 }
 
+// this initialises the payer struct array
 void init_players(struct player * players)
 {
     int i;
@@ -229,6 +238,7 @@ void init_players(struct player * players)
     }
 }
 
+// simulation for the chance cards
 int chance(struct player * players, int n) 
 {
     struct player * p = &players[n];
@@ -341,6 +351,7 @@ int chance(struct player * players, int n)
     return ret;
 }
 
+// simulates the community chest cards
 void comm_chest(struct player * players, int n)
 {
     struct player * p = &players[n];
@@ -414,9 +425,11 @@ void comm_chest(struct player * players, int n)
     }
 }
 
+// handles players landing on a utility
 void utility(struct player * players, struct location * board, const int multiplier, const int n, int * pvalue, char * plocation) 
 {
     struct player * p = &players[n];
+    // if property is owned pay up
     if (board[p->location].owner > -1)
     {
         long long amt;
@@ -425,6 +438,7 @@ void utility(struct player * players, struct location * board, const int multipl
         players[board[p->location].owner].money += amt;
         board[p->location].profits += amt;
     }
+    // otherwise buy it
     else if (board[p->location].owner == -2)
     {
         if (p->money > board[p->location].value)
@@ -440,9 +454,11 @@ void utility(struct player * players, struct location * board, const int multipl
 
 }
 
+// handles players landing on a railroad
 void railroad(struct player * players, struct location * board, const int multiplier, const int n, int * pvalue, char * plocation)
 {
     struct player * p = &players[n];
+    // if property is owned pay up
     if (board[p->location].owner > -1)
     {
         long long amt;
@@ -451,6 +467,7 @@ void railroad(struct player * players, struct location * board, const int multip
         players[board[p->location].owner].money += amt;
         board[p->location].profits += amt;
     }
+    // otherwise buy it
     else if (board[p->location].owner == -2)
     {
         if (p->money > board[p->location].value)
@@ -464,9 +481,11 @@ void railroad(struct player * players, struct location * board, const int multip
     }
 }
 
+// handles players landing on a property
 void property(struct player * players, struct location * board, const int n, int * pvalue, char * plocation)
 {
     struct player * p = &players[n];
+    // if property is owned pay up
     if (board[p->location].owner > -1)
     {
         // pay
@@ -480,6 +499,7 @@ void property(struct player * players, struct location * board, const int n, int
         //fprintf(output[globalrank], "player location is %d\n", p->location);
 #endif
     }
+    // otherwise buy it
     else if (board[p->location].owner == -2)
     {
         if (p->money > board[p->location].value)
@@ -493,10 +513,12 @@ void property(struct player * players, struct location * board, const int n, int
     }
 }
 
+// this function handles players moving around the board
 void move(struct player * players, struct location * board, const int n, int * pvalue, char * plocation)
 {
     struct player * p = &players[n];
     int ret;
+    // if out of money you can't play anymore
     if (p->money <= 0)
     {
         return;
@@ -504,6 +526,7 @@ void move(struct player * players, struct location * board, const int n, int * p
 #ifdef DEBUG
     fprintf(output[globalrank], "Player %d moved from %d\n", n, p->location);
 #endif
+    // check to see if on the "go to jail" cell
     if (p->location == 30)
     {
         // go to jail
@@ -514,8 +537,10 @@ void move(struct player * players, struct location * board, const int n, int * p
     }
     else
     {
+        // advance the player
         p->location += roll() + roll();
     }
+    // check to see if player passed go
     if (p->location > 39)
     {
 #ifdef DEBUG
@@ -627,7 +652,7 @@ void move(struct player * players, struct location * board, const int n, int * p
     }
 }
 
-//int count_group(const uint64_t prop, const uint64_t g)
+// counts how many properties a player owns in a property group (color)
 int count_group(struct location * b, const int group, const int n)
 {
     //printf("counting for %d, group %d\n", n, group);
@@ -659,6 +684,7 @@ int count_group(struct location * b, const int group, const int n)
 */
 }
 
+// counts how many properties a player owns overall
 int count_owned(struct location * b, const int n)
 {
     int i;
@@ -673,6 +699,7 @@ int count_owned(struct location * b, const int n)
     return res;
 }
 
+// experimental code: not used
 void trade(struct player * players, struct location * b, const int n, int * pvalue, char * plocation, struct senddata * d)
 {
     int i, j, g;
@@ -692,8 +719,10 @@ void trade(struct player * players, struct location * b, const int n, int * pval
         count[2] = count_group(b, g, 2);
         count[3] = count_group(b, g, 3);
         //printf("group %d: player 0 %d player 1 %d player 2 %d player 3 %d\n", g, count[0], count[1], count[2], count[3]);
+        // if player has at least two properties and enough money then attempt a trade
         if (count[n] == 2 && players[n].money > 0)
         {
+            // player will buy if seller asks low enough
             sellbid = rand() % (players[n].money / 100 + 1) * b[players[n].location].value;
             buybid = rand() % (players[n].money / 100 + 1) * b[players[n].location].value;
             if (sellbid <= buybid)
@@ -701,11 +730,13 @@ void trade(struct player * players, struct location * b, const int n, int * pval
 #ifdef DEBUG
                 fprintf(output[globalrank], "buyer %d already has %d\n", n, count[n]);
 #endif
+                // find the property in the group not yet owned
                 for (j = 0; j < 3; j++)
                 {
 #ifdef DEBUG
                     fprintf(output[globalrank], "trading group. %d onwer is %d\n", GROUPS[g][j], b[GROUPS[g][j]].owner);
 #endif
+                    // buy it
                     if (b[GROUPS[g][j]].owner != n && b[GROUPS[g][j]].owner > -1)
                     {
                         seller = b[GROUPS[g][j]].owner;
@@ -730,17 +761,20 @@ void trade(struct player * players, struct location * b, const int n, int * pval
     }
 }
 
+// print the results of the simulation
 void results(struct player * p, struct location * b)
 {
     long long totalvisits = 0;
     printf("====================\n");
     int i;
+    // money for each player (in game 0)
     for (i = 0; i < NUMPLAYERS; i++)
     {
         printf("Player %d: money %ld location %d\n", i, p[i].money, p[i].location);
     }
     printf("--------------------\n");
     printf("Properties\n");
+    // board data
     for (i = 0; i < BSIZE; i++)
     {
         printf("%d: Profits %ld Owner %d Visited: %ld\n", i, b[i].profits, b[i].owner, b[i].visited);
@@ -748,6 +782,7 @@ void results(struct player * p, struct location * b)
     }
     printf("====================\n\n\n");
     printf("Proportion of time spent in cell\n");
+    // proportion of visits in each cell
     for (i = 0; i < BSIZE; i++)
     {
         printf("%d: %lf\n", i, (double) b[i].visited / totalvisits);
@@ -755,6 +790,7 @@ void results(struct player * p, struct location * b)
     printf("====================\n");
 }
 
+// removes player ownership when they loose
 void remove_properties(struct location * b, const int n)
 {
     int i;
@@ -767,6 +803,7 @@ void remove_properties(struct location * b, const int n)
     }
 }
 
+// print out the board ownership, visits, rent, and profits
 void print_board_info(struct location * b)
 {
     fprintf(output[globalrank], "board\n");
@@ -778,24 +815,7 @@ void print_board_info(struct location * b)
     fprintf(output[globalrank], "\n\n");
 }
 
-int cont(struct player * players)
-{
-    int left = 0;
-    int i;
-    for (i = 0 ; i < NUMPLAYERS; i++)
-    {
-        if (players[i].money > 0)
-        {
-            left++;
-        }
-    }
-    if (left > 1)
-    {
-        return 1;
-    }
-    return 0;
-}
-
+// gather the results from every thread to find the total visits and profits
 void gather_results(struct player * players, struct location * board, MPI_Comm * games, 
                     const int numcomms, const int rank)
 {
@@ -807,6 +827,7 @@ void gather_results(struct player * players, struct location * board, MPI_Comm *
 #ifdef DEBUG
     fprintf(output[globalrank], "tag 5 from rank %d\n", rank);
 #endif
+    // send only the data needed
     for (i = 0; i < 40; i++)
     {
         visits[i] = board[i].visited;    
@@ -818,11 +839,6 @@ void gather_results(struct player * players, struct location * board, MPI_Comm *
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Gather(visits, 40, MPI_LONG_LONG, allvisits, 40, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     MPI_Gather(profits, 40, MPI_LONG_LONG, allprofits, 40, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-    //if (globalrank != 0)
-    //{
-    //    MPI_Send(visits, 40, MPI_LONG_LONG, 0, 10, MPI_COMM_WORLD);
-    //    MPI_Send(profits, 40, MPI_LONG_LONG, 0, 10, MPI_COMM_WORLD);
-    //}
 #ifdef DEBUG
     fprintf(output[globalrank], "tag 7 from rank %d\n", rank);
 #endif
@@ -839,6 +855,8 @@ void gather_results(struct player * players, struct location * board, MPI_Comm *
 #endif
 }
 
+// this is how players keep in touch with each other at the end of their turn
+// sends only the necessary player data
 void send_info(struct senddata * send, struct player * players, struct location * board, 
                const int rank, MPI_Comm game, const MPI_Datatype MPI_MONO_DATA)
 {
@@ -859,6 +877,7 @@ void send_info(struct senddata * send, struct player * players, struct location 
     int buyer[4] = {0, 0, 0, 0};
     int escrow[4];
     int numplayers = (globalsize > 3 ? 4 : 2);
+    // check to see if other players are trying to buy the property.
     for (i = 0; i < numplayers; i++)
     {
 #ifdef DEBUG
@@ -896,6 +915,7 @@ void send_info(struct senddata * send, struct player * players, struct location 
 #ifdef DEBUG
         fprintf(output[globalrank], "player %d bought %d\n", rank, send->plocation); 
 #endif
+        // once lowest ranked buyer is found buy the property
         players[buyer[i]].money -= p[buyer[i]].pvalue;
         board[p[i].plocation].owner = p[buyer[i]].order;
         //if (p[i].trade)
@@ -940,6 +960,7 @@ int main(int argc, char ** argv)
     d.money[3] = 0;
     output = (FILE **) malloc(size * sizeof(FILE *));
 
+    // if 1 process created just run sequentially
     if (size == 1)
     {
         int done[4] = {1, 1, 1, 1};
@@ -978,6 +999,7 @@ int main(int argc, char ** argv)
         return 0;
     }
 
+    // create a communicator for each monopoly game (for n > 4)
     MPI_Group * gamesel;
     MPI_Comm * games;
     int ranksel[4];
@@ -999,10 +1021,12 @@ int main(int argc, char ** argv)
     }
     else
     {
+        // n < 4 so use MPI_COMM_WORLD
         games = (MPI_Comm *) malloc(1 * sizeof(MPI_Comm));
         games[0] = MPI_COMM_WORLD;
     }
 
+    // create an MPI type so that we can use our player data struct in MPI communication calls
     const int nitems = 5;
     int blocklengths[5] = {4, 1, 1, 1, 1};
     MPI_Datatype types[5] = {MPI_LONG_LONG, MPI_INT, MPI_CHAR, MPI_CHAR, MPI_CHAR};
@@ -1025,6 +1049,7 @@ int main(int argc, char ** argv)
     fprintf(output[globalrank], "MAIN begin loop\n");
 #endif
     print_board_info(board);
+    // run the game for 40000 turns (10000 per player)
     while (itr > 0)
     {
         itr--;
@@ -1032,11 +1057,9 @@ int main(int argc, char ** argv)
         plocation = 0;
         d.trade = 0;
         d.order = rank;
-//        sleep(rank);
 #ifdef DEBUG
         fprintf(output[globalrank], "MAIN tag 1 rank %d\n", rank);
 #endif
-        // this player is still in the game
         move(players, board, rank, &pvalue, &plocation);
 //        if (!plocation)
 //        {
@@ -1047,24 +1070,22 @@ int main(int argc, char ** argv)
         d.plocation = plocation;
 #ifdef DEBUG
         fprintf(output[globalrank], "using comm %d\n", globalrank / 4);
-        if (games[globalrank / 4] != MPI_COMM_WORLD)
-        {
-            fprintf(output[globalrank], "COMM ERROR\n");
-        }
+        //if (games[globalrank / 4] != MPI_COMM_WORLD)
+        //{
+        //    fprintf(output[globalrank], "COMM ERROR\n");
+        //}
 #endif
         send_info(&d, players, board, rank, games[globalrank / 4], MPI_MONO_DATA);
 #ifdef DEBUG
         fprintf(output[globalrank], "MAIN tag 3 rank %d\n", rank);
 #endif
-        // make sure you can actually buy that property and subtract money owed
         print_board_info(board);
     }
-    // player is out of money
-    // remove all properties owned
     
 #ifdef DEBUG
     fprintf(output[globalrank], "MAIN last tag rank %d\n", rank);
 #endif
+    // get results from each process
     gather_results(players, board, games, numcomms, globalrank);
     gettimeofday(&t2, NULL);
     if (globalrank == 0)
@@ -1079,6 +1100,7 @@ int main(int argc, char ** argv)
     {
         printf("Exec Time %lf\n", exectime);
     }
+    // use a barrier to make sure everything prints before exiting
     MPI_Barrier(MPI_COMM_WORLD);
 
     return 0;
