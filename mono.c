@@ -778,7 +778,7 @@ int main()
     init_players(players);
 
 //    results(players, board);
-    int itr = 100000;
+    int itr = 10000;
     int done[4] = {1, 1, 1, 1};
     int i;
     //while (cont(players))

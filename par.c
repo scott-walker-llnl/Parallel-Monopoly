@@ -12,7 +12,7 @@
 #define BSIZE 40
 #define NUMPLAYERS 4
 
-#define DEBUG
+//#define DEBUG
 
 #define MEC(call) {int res; res = call; if (res != MPI_SICCESS) {fprintf(stderr, "Call %i \n", res); MPI_Abort(MPI_COMM_WORLD, res);}}
 
@@ -915,18 +915,22 @@ int main(int argc, char ** argv)
     srand(time(NULL) + globalrank);
     struct location board[BSIZE];
     struct player players[NUMPLAYERS];
-    int itr = 1000;
+    int itr = 10000;
     long long bills[4]; // how much you owe each player at end of round
     init_players(players);
     init_board(board);
     char plocation;
     int pvalue;
-    struct senddata;
+    //struct senddata;
     int numcomms = 1;
     MPI_Group world_group;
     MPI_Comm_group(MPI_COMM_WORLD, &world_group);
     //struct senddata d;
     playerdata d;
+    d.money[0] = 0;
+    d.money[1] = 0;
+    d.money[2] = 0;
+    d.money[3] = 0;
     output = (FILE **) malloc(size * sizeof(FILE *));
 
     if (size == 1)
