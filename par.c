@@ -56,11 +56,10 @@ typedef struct senddata
 // each player's local data
 struct player
 {
-    char location; // p[0]
-    char order; // p[1]
+    char location;
+    char order;
     char properties[5];
-    // properties p[3 - 7]
-    long long money; // p[8-15]
+    long long money;
 };
 
 // information for each square

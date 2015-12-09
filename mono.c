@@ -37,12 +37,11 @@ static const int UTILITIES[2] = {12, 28};
 
 struct player
 {
-    char location; // p[0]
-    char order; // p[1]
-    int aggro; // not implemented
-    char player; // p[2] 
-    // properties p[3 - 7]
-    long long money; // p[8-15]
+    char location;
+    char order;
+    int aggro;
+    char player;
+    long long money;
 };
 
 struct location
@@ -609,36 +608,18 @@ void move(struct player * players, struct location * board, const int n)
     }
 }
 
-//int count_group(const uint64_t prop, const uint64_t g)
 int count_group(struct location * b, const int group, const int n)
 {
-    //printf("counting for %d, group %d\n", n, group);
     int count = 0;
     int i;
     for (i = 0; i < 3; i++)
     {
-        //printf("b[GROUPS[group][i]].owner %d, n %d\n", b[GROUPS[group][i]].owner, n);
         if (b[GROUPS[group][i]].owner == n)
         {
             count++;
         }
     }
-    //printf("count is %d\n", count);
     return count;
-/*
-    uint64_t temp = 0;
-    int count;
-    temp = prop & g;
-    while (temp)
-    {
-        if (temp % 2)
-        {
-            count++;
-        }
-        temp >>= 1;
-    }
-    return count;
-*/
 }
 
 int count_owned(struct location * b, const int n)
@@ -673,17 +654,14 @@ void trade(struct player * players, struct location * b, const int n)
         count[1] = count_group(b, g, 1);
         count[2] = count_group(b, g, 2);
         count[3] = count_group(b, g, 3);
-        //printf("group %d: player 0 %d player 1 %d player 2 %d player 3 %d\n", g, count[0], count[1], count[2], count[3]);
         if (count[n] == 2 && players[n].money > 0)
         {
             sellbid = rand() % (players[n].money / 100 + 1) * b[players[n].location].value;
             buybid = rand() % (players[n].money / 100 + 1) * b[players[n].location].value;
             if (sellbid <= buybid)
             {
-                //printf("buyer %d already has %d\n", n, count[n]);
                 for (j = 0; j < 3; j++)
                 {
-                    //printf("trading group. %d onwer is %d\n", GROUPS[g][j], b[GROUPS[g][j]].owner);
                     if (b[GROUPS[g][j]].owner != n && b[GROUPS[g][j]].owner > -1)
                     {
                         seller = b[GROUPS[g][j]].owner;
@@ -779,11 +757,9 @@ int main()
     struct player players[NUMPLAYERS];
     init_players(players);
 
-//    results(players, board);
     int itr = 10000;
     int done[4] = {1, 1, 1, 1};
     int i;
-    //while (cont(players))
     while (itr)
     {
         itr--;
