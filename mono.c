@@ -1,10 +1,14 @@
 // mono.c
 // Scott Walker
-//
+// Mark Ayala
+// Mallory Walsh
+// This program simulates the game monopoly to discover the most frequently visited cells and
+// highest profit generating cells
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
 #include <stdint.h>
 
 #define BSIZE 40
@@ -770,6 +774,8 @@ int cont(struct player * players)
 
 int main()
 {
+    struct timeval t1, t2;
+    gettimeofday(&t1, NULL);
     srand(time(NULL));
     struct location board[BSIZE];
     init_board(board);
@@ -805,7 +811,10 @@ int main()
 
     }
 
+    gettimeofday(&t2, NULL);
     results(players, board);
+    double exectime = (t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec);
+    printf("Exec Time %lf\n", exectime);
 
     return 0;
 }

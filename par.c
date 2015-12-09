@@ -1,9 +1,14 @@
-// mono.c
+// par.c
 // Scott Walker
-//
+// Mallory Walsh
+// Mark Ayala
+// This simulates monopoly in parallel using MPI. It can make use of any number of processes that is a power of 2.
+// The main purpose of this program is to determine the most visited cells and the highest profit generating cells.
+// Note: this program will put debug output in the .dbg files
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <time.h>
 #include <mpi.h>
 #include <stdint.h>
@@ -907,7 +912,9 @@ void send_info(struct senddata * send, struct player * players, struct location 
 // TODO: add player payments for chance/chest
 int main(int argc, char ** argv)
 {
+    struct timeval t1, t2;
     MPI_Init(&argc, &argv);
+    gettimeofday(&t1, NULL);
     int rank, size;// globalrank;
     MPI_Comm_rank(MPI_COMM_WORLD, &globalrank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -964,7 +971,10 @@ int main(int argc, char ** argv)
                 }
             }
         }
+        gettimeofday(&t2, NULL);
         results(players, board);
+        double exectime = (t2.tv_sec - t1.tv_sec) * 1000000 + ((t2.tv_usec - t1.tv_usec));
+        printf("Exec Time %lf\n", exectime);
         return 0;
     }
 
@@ -1009,7 +1019,7 @@ int main(int argc, char ** argv)
     MPI_Comm_rank(games[globalrank / 4], &rank);
 
     char fname[10];
-    snprintf(fname, 10, "mon%d", globalrank);
+    snprintf(fname, 10, "mon%d.dbg", globalrank);
     output[globalrank] = fopen(fname, "w");
 #ifdef DEBUG
     fprintf(output[globalrank], "MAIN begin loop\n");
@@ -1056,13 +1066,20 @@ int main(int argc, char ** argv)
     fprintf(output[globalrank], "MAIN last tag rank %d\n", rank);
 #endif
     gather_results(players, board, games, numcomms, globalrank);
+    gettimeofday(&t2, NULL);
     if (globalrank == 0)
     {
         results(players, board);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+
 
     fclose(output[globalrank]);
+    double exectime = (t2.tv_sec - t1.tv_sec) * 1000000 + ((t2.tv_usec - t1.tv_usec));
+    if (globalrank == 0)
+    {
+        printf("Exec Time %lf\n", exectime);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
 
     return 0;
 }
