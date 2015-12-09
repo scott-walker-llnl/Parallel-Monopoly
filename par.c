@@ -17,7 +17,7 @@
 #define BSIZE 40
 #define NUMPLAYERS 4
 
-//#define DEBUG
+#define DEBUG
 
 #define MEC(call) {int res; res = call; if (res != MPI_SICCESS) {fprintf(stderr, "Call %i \n", res); MPI_Abort(MPI_COMM_WORLD, res);}}
 
@@ -517,11 +517,6 @@ void move(struct player * players, struct location * board, const int n, int * p
 {
     struct player * p = &players[n];
     int ret;
-    // if out of money you can't play anymore
-    if (p->money <= 0)
-    {
-        return;
-    }
 #ifdef DEBUG
     fprintf(output[globalrank], "Player %d moved from %d\n", n, p->location);
 #endif
@@ -791,7 +786,8 @@ void print_board_info(struct location * b)
     int i;
     for (i = 0; i < BSIZE; i++)
     {
-        fprintf(output[globalrank], "%d: value %d rent %d owner %d profits %ld\n", i, b[i].value, b[i].rent, b[i].owner, b[i].profits);
+        fprintf(output[globalrank], "%d: value %d rent %d owner %d profits %ld, visits %ld\n", 
+                i, b[i].value, b[i].rent, b[i].owner, b[i].profits, b[i].visited);
     }
     fprintf(output[globalrank], "\n\n");
 }
@@ -817,16 +813,19 @@ void gather_results(struct player * players, struct location * board, MPI_Comm *
 #ifdef DEBUG
     fprintf(output[globalrank], "tag 6 from rank (barrier 2)%d\n", rank);
 #endif
-    //MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
     MPI_Gather(visits, 40, MPI_LONG_LONG, allvisits, 40, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     MPI_Gather(profits, 40, MPI_LONG_LONG, allprofits, 40, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 #ifdef DEBUG
-    fprintf(output[globalrank], "tag 7 from rank %d\n", rank);
+    fprintf(output[globalrank], "tag 7 from rank %d, globalsize %d, numcomms %d\n", rank, globalsize, numcomms);
 #endif
     if (globalrank == 0)
     {
-        for (i = 0; i < 40 * numcomms; i++)
+        for (i = 0; i < 40 * globalsize * numcomms; i++)
         {
+#ifdef DEBUG
+            fprintf(output[globalrank], "GATHER allvisits[i] is %ld\n", allvisits[i]);
+#endif
             board[i % 40].visited += allvisits[i];
             board[i % 40].profits += allprofits[i];
         }
@@ -848,6 +847,7 @@ void send_info(struct senddata * send, struct player * players, struct location 
     fprintf(output[globalrank], "d: send data for player %d, plocation %d, pvalue %d\n", 
             send->order, send->plocation, send->pvalue);
 #endif
+    MPI_Barrier(game);
     MPI_Allgather(send, 1, MPI_MONO_DATA, p, 1, MPI_MONO_DATA, game);
 #ifdef DEBUG
     fprintf(output[globalrank], "tag 2 from rank %d\n", rank);
@@ -993,6 +993,7 @@ int main(int argc, char ** argv)
         // n < 4 so use MPI_COMM_WORLD
         games = (MPI_Comm *) malloc(1 * sizeof(MPI_Comm));
         games[0] = MPI_COMM_WORLD;
+        numcomms = 1;
     }
 
     // create an MPI type so that we can use our player data struct in MPI communication calls
@@ -1011,10 +1012,10 @@ int main(int argc, char ** argv)
 
     MPI_Comm_rank(games[globalrank / 4], &rank);
 
+#ifdef DEBUG
     char fname[10];
     snprintf(fname, 10, "mon%d.dbg", globalrank);
     output[globalrank] = fopen(fname, "w");
-#ifdef DEBUG
     fprintf(output[globalrank], "MAIN begin loop\n");
     print_board_info(board);
 #endif
@@ -1058,7 +1059,9 @@ int main(int argc, char ** argv)
     }
 
 
+#ifdef DEBUG
     fclose(output[globalrank]);
+#endif
     double exectime = (t2.tv_sec - t1.tv_sec) * 1000000 + ((t2.tv_usec - t1.tv_usec));
     if (globalrank == 0)
     {
