@@ -836,7 +836,7 @@ void gather_results(struct player * players, struct location * board, MPI_Comm *
 #ifdef DEBUG
     fprintf(output[globalrank], "tag 6 from rank (barrier 2)%d\n", rank);
 #endif
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
     MPI_Gather(visits, 40, MPI_LONG_LONG, allvisits, 40, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
     MPI_Gather(profits, 40, MPI_LONG_LONG, allprofits, 40, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 #ifdef DEBUG
@@ -868,7 +868,7 @@ void send_info(struct senddata * send, struct player * players, struct location 
             send->order, send->plocation, send->pvalue);
 #endif
     //if (game != MPI_COMM_WORLD) fprintf(output[globalrank], "COMM ERROR\n");
-    MPI_Barrier(game);
+    //MPI_Barrier(game);
     MPI_Allgather(send, 1, MPI_MONO_DATA, p, 1, MPI_MONO_DATA, game);
 #ifdef DEBUG
     fprintf(output[globalrank], "tag 2 from rank %d\n", rank);
@@ -1101,7 +1101,8 @@ int main(int argc, char ** argv)
         printf("Exec Time %lf\n", exectime);
     }
     // use a barrier to make sure everything prints before exiting
-    MPI_Barrier(MPI_COMM_WORLD);
+//    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize();
 
     return 0;
 }
