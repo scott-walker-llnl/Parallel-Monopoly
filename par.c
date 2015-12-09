@@ -17,7 +17,7 @@
 #define BSIZE 40
 #define NUMPLAYERS 4
 
-#define DEBUG
+//#define DEBUG
 
 #define MEC(call) {int res; res = call; if (res != MPI_SICCESS) {fprintf(stderr, "Call %i \n", res); MPI_Abort(MPI_COMM_WORLD, res);}}
 
